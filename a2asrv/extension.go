@@ -1,6 +1,11 @@
 package a2asrv
 
-import "github.com/a2aproject/a2a-go/v2/a2a"
+import (
+	"slices"
+
+	"github.com/a2aproject/a2a-go/v2/a2a"
+	sdka2asrv "github.com/a2aproject/a2a-go/v2/a2asrv"
+)
 
 // Well-known URIs for the A2UI v0.9 A2A extension and reference catalogs used in [AgentExtension].
 const (
@@ -29,4 +34,11 @@ var AgentExtension = a2a.AgentExtension{
 		},
 		"acceptsInlineCatalogs": true,
 	},
+}
+
+// IsActivated reports whether the A2UI v0.9 extension ([extensionURI]) is currently activated on
+// callCtx—i.e. present in [sdka2asrv.CallContext.Extensions.ActivatedURIs]. Typical use is after an
+// interceptor or handler has activated the extension in response to a client request.
+func IsActivated(callCtx *sdka2asrv.CallContext) bool {
+	return slices.Contains(callCtx.Extensions().ActivatedURIs(), extensionURI)
 }
