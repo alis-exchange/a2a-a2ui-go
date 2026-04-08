@@ -4,7 +4,8 @@
 // The primary entry points are [GenerateA2UIMessages], which returns a [google.golang.org/adk/tool.Tool]
 // that validates tool arguments, and [NewA2UIToolset], which wraps that tool in a filtered toolset
 // exposed only when A2UI capabilities are present on the agent context (see
-// [go.alis.build/a2a/extension/a2ui/kit.CapabilitiesFromContext]).
+// [go.alis.build/a2a/extension/a2ui/kit.CapabilitiesFromContext], typically after
+// [go.alis.build/a2a/extension/a2ui/kit.WithA2UICapabilities]).
 //
 // Schema validation uses [github.com/google/jsonschema-go/jsonschema]. Additional semantic checks
 // (for example, requiring a component with id "root" for each created surface) are implemented in

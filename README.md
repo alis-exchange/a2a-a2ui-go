@@ -7,7 +7,7 @@ Go libraries for the **[A2UI](https://a2ui.org/)** (Agent-to-UI) **[A2A](https:/
 ## Features
 
 - **ADK tools** (`tools`) — `generate_a2ui_messages` [function tool](https://pkg.go.dev/google.golang.org/adk/tool/functiontool) with JSON Schema derived from the A2UI v0.9 server-to-client message list, plus semantic checks (e.g. `id: "root"` per surface).
-- **Capabilities** (`kit`) — Store and read A2UI extension params on `context.Context`; parse `supportedCatalogIds` and `inlineCatalogs`.
+- **Capabilities** (`kit`) — Copy client capability params from executor message metadata (`a2uiClientCapabilities` → `v0.9`) onto `context.Context` when A2UI is activated; parse `supportedCatalogIds` and `inlineCatalogs` from a params map.
 - **A2A server** (`a2asrv`) — Ready-made `AgentExtension` metadata (catalog URIs, `acceptsInlineCatalogs`) and a `CallInterceptor` that activates the extension when the client requests it.
 
 ## Packages
@@ -23,7 +23,7 @@ Go libraries for the **[A2UI](https://a2ui.org/)** (Agent-to-UI) **[A2A](https:/
 
 1. **Discovery** — Servers advertise [`a2asrv.AgentExtension`](a2asrv/extension.go) so clients learn supported catalog IDs and whether inline catalogs are allowed.
 2. **Negotiation** — When the client requests the A2UI extension URI, [`a2asrv.NewInterceptor`](a2asrv/interceptor.go) can activate the extension on the call.
-3. **Runtime** — Agent code uses [`kit.WithA2UICapabilities`](kit/capabilities.go) (or your own wiring) so [`tools.NewA2UIToolset`](tools/tool.go) only exposes the A2UI tool when capabilities are present.
+3. **Runtime** — When handling a message, call [`kit.WithA2UICapabilities`](kit/capabilities.go) with the current `context.Context` and `*sdka2asrv.ExecutorContext` so client capabilities from `execCtx.Message.Metadata` are available to [`kit.CapabilitiesFromContext`](kit/capabilities.go); [`tools.NewA2UIToolset`](tools/tool.go) then exposes the A2UI tool only if that map is present.
 4. **Generation** — The model calls `generate_a2ui_messages` with a `messages` array; validation runs against the inlined schema in [`tools/schema.go`](tools/schema.go) and [`tools/utils.go`](tools/utils.go).
 
 ```mermaid
@@ -55,7 +55,7 @@ If you use **a2a-go**’s server stack, register [`a2asrv.NewInterceptor`](a2asr
 
 ### Expose the ADK tool
 
-1. Attach A2UI capability data to the agent context when appropriate ([`kit.WithA2UICapabilities`](kit/capabilities.go)).
+1. From your executor path, pass the ADK/`a2asrv` context and [`sdka2asrv.ExecutorContext`](https://pkg.go.dev/github.com/a2aproject/a2a-go/v2/a2asrv#ExecutorContext) into [`kit.WithA2UICapabilities`](kit/capabilities.go). It no-ops unless the call has an A2A [`CallContext`](https://pkg.go.dev/github.com/a2aproject/a2a-go/v2/a2asrv#CallContext), A2UI is activated, and metadata contains `a2uiClientCapabilities` with a `v0.9` object.
 2. Add [`tools.NewA2UIToolset`](tools/tool.go) to your agent’s toolsets so the model can emit validated `messages` arrays.
 
 ## Documentation

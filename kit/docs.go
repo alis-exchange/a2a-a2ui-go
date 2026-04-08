@@ -1,10 +1,11 @@
-// Package kit contains small helpers for working with A2UI capability data attached to a
-// [context.Context] or deserialized from an A2A agent extension params map.
+// Package kit contains helpers for A2UI client capability data: attaching it to a [context.Context]
+// and parsing catalog fields from a capability params map.
 //
-// Use [WithA2UICapabilities] to store capability maps on a context (typically after negotiation or
-// client handshake) and [CapabilitiesFromContext] to read them back—for example when deciding
-// whether to expose A2UI-related tools.
+// [WithA2UICapabilities] copies A2UI v0.9 capabilities from an executor message
+// (Metadata["a2uiClientCapabilities"]["v0.9"]) onto the context when the A2A call context is
+// present and the A2UI extension is activated. [CapabilitiesFromContext] reads that map—for example
+// to decide whether to expose A2UI tools.
 //
-// [GetCatalogs] extracts supported catalog ID strings and normalized inline catalog objects from
-// the extension params shape described by the A2UI specification.
+// [GetCatalogs] extracts supportedCatalogIds and inlineCatalogs from a capability params map in
+// the shape described by the A2UI specification.
 package kit
