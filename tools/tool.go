@@ -3,11 +3,13 @@ package tools
 import (
 	"fmt"
 
+	"github.com/a2aproject/a2a-go/v2/a2a"
 	"github.com/google/jsonschema-go/jsonschema"
 	"go.alis.build/a2a/extension/a2ui/kit"
 	"google.golang.org/adk/agent"
 	"google.golang.org/adk/tool"
 	"google.golang.org/adk/tool/functiontool"
+	"google.golang.org/genai"
 )
 
 // ToolName is the ADK tool identifier for [GenerateA2UIMessages]. Agents and prompts should refer
@@ -164,4 +166,25 @@ func (t *a2uiToolset) Name() string {
 // Tools returns the tools registered in this toolset.
 func (t *a2uiToolset) Tools(_ agent.ReadonlyContext) ([]tool.Tool, error) {
 	return t.tools, nil
+}
+
+// GetA2uiDataPart inspects a genai.Part to determine if it contains an A2UI function response.
+// If it does, it extracts the A2UI messages and wraps them in an a2a.DataPart with the
+// appropriate mimeType ("application/json+a2ui"). Returns the new part and true if successful.
+func GetA2uiDataPart(part *genai.Part) (a2uiData *a2a.Part, ok bool) {
+	// Check if the part is a function response from the A2UI tool
+	if part != nil && part.FunctionResponse != nil && part.FunctionResponse.Name == ToolName {
+		// Extract the "messages" array from the response
+		if messages, ok := part.FunctionResponse.Response["messages"]; ok {
+			// Wrap the messages in an A2A data part
+			dataPart := a2a.NewDataPart(messages)
+			// Set the metadata to indicate it's an A2UI payload
+			dataPart.Metadata = map[string]any{
+				"mimeType": "application/json+a2ui",
+			}
+			return dataPart, true
+		}
+	}
+
+	return nil, false
 }
