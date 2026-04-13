@@ -12,10 +12,14 @@ import (
 	"google.golang.org/genai"
 )
 
-// ToolName is the ADK tool identifier for [GenerateA2UIMessages]. Agents and prompts should refer
-// to this constant when configuring allowed tools.
 const (
-	ToolName = "generate_a2ui_messages"
+	// GenerateA2UIMessagesToolName is the ADK tool identifier for [GenerateA2UIMessages]. Agents and prompts should
+	// refer to this constant when configuring allowed tools.
+	GenerateA2UIMessagesToolName = "generate_a2ui_messages"
+
+	// CatalogToolName is the ADK tool identifier for [A2UICatalogTool], registered alongside
+	// [GenerateA2UIMessages] in [NewA2UIToolset].
+	CatalogToolName = "a2ui_catalog"
 )
 
 // toolDescription is the human-readable instruction block shown to the model. It summarizes valid
@@ -121,17 +125,149 @@ func GenerateA2UIMessages() (tool.Tool, error) {
 	}
 
 	return functiontool.New(functiontool.Config{
-		Name:         ToolName,
+		Name:         GenerateA2UIMessagesToolName,
 		Description:  toolDescription,
 		InputSchema:  GenerateA2UIToolArgs{}.JSONSchema(),
 		OutputSchema: GenerateA2UIToolArgs{}.JSONSchema(),
 	}, handler)
 }
 
-// NewA2UIToolset returns a named [tool.Toolset] containing [GenerateA2UIMessages], filtered so the
-// tool is only visible when [kit.CapabilitiesFromContext] finds A2UI capabilities on the agent
+// A2UICatalogToolInput is the JSON input for [A2UICatalogTool]. The model sends an empty object;
+// catalog data comes only from A2UI capabilities already on the tool context (see
+// [kit.CapabilitiesFromContext]).
+type A2UICatalogToolInput struct{}
+
+// JSONSchema returns the input schema exposed to the model: an object with no required properties.
+func (i *A2UICatalogToolInput) JSONSchema() *jsonschema.Schema {
+	return &jsonschema.Schema{
+		Type:       "object",
+		Properties: map[string]*jsonschema.Schema{},
+	}
+}
+
+// A2UICatalogToolOutput is the JSON output of [A2UICatalogTool]. CatalogURLs lists values from the
+// client's supportedCatalogIds capability (often absolute catalog URLs). InlineCatalogs holds
+// full catalog documents from inlineCatalogs, in the same shape as [kit.GetCatalogs].
+type A2UICatalogToolOutput struct {
+	CatalogURLs    []string         `json:"catalog_urls"`
+	InlineCatalogs []map[string]any `json:"inline_catalogs"`
+}
+
+// JSONSchema returns the output schema exposed to the model for catalog_urls and inline_catalogs.
+func (o *A2UICatalogToolOutput) JSONSchema() *jsonschema.Schema {
+	return &jsonschema.Schema{
+		Type: "object",
+		Properties: map[string]*jsonschema.Schema{
+			"catalog_urls": {
+				Type:        "array",
+				Description: "A list of valid URLs pointing to supported external A2UI catalogs.",
+				Items: &jsonschema.Schema{
+					Type:        "string",
+					Description: "The absolute URL pointing to a JSON catalog definition.",
+					Format:      "uri",
+				},
+			},
+			"inline_catalogs": {
+				Type:        "array",
+				Description: "A collection of fully defined A2UI component catalogs provided inline.",
+				Items: &jsonschema.Schema{
+					Type:        "object",
+					Description: "An individual A2UI catalog detailing available UI components, client-side functions, and shared definitions.",
+					Properties: map[string]*jsonschema.Schema{
+						"$schema": {
+							Type:        "string",
+							Description: "The JSON schema version URL.",
+							Format:      "uri",
+						},
+						"$id": {
+							Type:        "string",
+							Description: "The unique identifier URL for the catalog definition.",
+						},
+						"title": {
+							Type:        "string",
+							Description: "The human-readable title of the component catalog.",
+						},
+						"description": {
+							Type:        "string",
+							Description: "A brief explanation of the catalog's purpose or underlying UI framework.",
+						},
+						"catalogId": {
+							Type:        "string",
+							Description: "The unique ID referencing this specific catalog.",
+						},
+						"components": {
+							Type:        "object",
+							Description: "A dynamic mapping of component names (e.g., 'CapabilitiesCard', 'UserRegistrationForm') to their respective JSON schemas.",
+							AdditionalProperties: &jsonschema.Schema{
+								Type:        "object",
+								Description: "The schema definition for a specific UI component, including its allowed properties and required fields.",
+							},
+						},
+						"functions": {
+							Type:        "object",
+							Description: "A dynamic mapping of supported client-side function names (e.g., 'add', 'formatString') to their expected arguments and return types.",
+							AdditionalProperties: &jsonschema.Schema{
+								Type:        "object",
+								Description: "The schema definition for a specific function, detailing its 'call' constant, 'args', and 'returnType'.",
+							},
+						},
+						"$defs": {
+							Type:        "object",
+							Description: "Reusable JSON schema definitions and common types shared across multiple components or functions.",
+							AdditionalProperties: &jsonschema.Schema{
+								Type:        "object",
+								Description: "A shared JSON schema definition.",
+							},
+						},
+					},
+					Required: []string{"title", "catalogId", "components"},
+				},
+			},
+		},
+		Required: []string{"catalog_urls", "inline_catalogs"},
+	}
+}
+
+// A2UICatalogTool builds an ADK [tool.Tool] named [CatalogToolName] that reads A2UI extension
+// capabilities from the context and returns supported catalog IDs and any inline catalogs. When
+// no capabilities are present (for example before negotiation), the handler returns empty slices
+// without error so the model can still call the tool safely.
+func A2UICatalogTool() (tool.Tool, error) {
+	handler := func(ctx tool.Context, input *A2UICatalogToolInput) (*A2UICatalogToolOutput, error) {
+		a2uiCapabilities, ok := kit.CapabilitiesFromContext(ctx)
+		if !ok {
+			// No negotiated A2UI params on this turn; empty output is valid.
+			return &A2UICatalogToolOutput{}, nil
+		}
+
+		catalogURLs, catalogsMap, err := kit.GetCatalogs(a2uiCapabilities)
+		if err != nil {
+			return nil, err
+		}
+
+		return &A2UICatalogToolOutput{
+			CatalogURLs:    catalogURLs,
+			InlineCatalogs: catalogsMap,
+		}, nil
+	}
+	return functiontool.New(functiontool.Config{
+		Name:         CatalogToolName,
+		Description:  "Fetches the full A2UI component library capabilities. Use this tool when requested to build or modify a user interface. It returns both external catalog URLs and inline JSON schemas detailing all available UI components, their required fields, data types, and supported client-side functions (like math or string formatting).",
+		InputSchema:  (&A2UICatalogToolInput{}).JSONSchema(),
+		OutputSchema: (&A2UICatalogToolOutput{}).JSONSchema(),
+	}, handler)
+}
+
+// NewA2UIToolset returns a named [tool.Toolset] containing [A2UICatalogTool] and
+// [GenerateA2UIMessages] (catalog first, then message generation). The set is filtered so both
+// tools are only visible when [kit.CapabilitiesFromContext] finds A2UI capabilities on the agent
 // context (for example after extension negotiation).
 func NewA2UIToolset() (tool.Toolset, error) {
+	a2uiCatalogTool, err := A2UICatalogTool()
+	if err != nil {
+		return nil, err
+	}
+
 	a2uiTool, err := GenerateA2UIMessages()
 	if err != nil {
 		return nil, err
@@ -139,7 +275,7 @@ func NewA2UIToolset() (tool.Toolset, error) {
 
 	var toolSet tool.Toolset = &a2uiToolset{
 		name:  "a2ui",
-		tools: []tool.Tool{a2uiTool},
+		tools: []tool.Tool{a2uiCatalogTool, a2uiTool},
 	}
 	toolSet = tool.FilterToolset(toolSet, func(ctx agent.ReadonlyContext, tool tool.Tool) bool {
 		if _, ok := kit.CapabilitiesFromContext(ctx); !ok {
@@ -173,7 +309,7 @@ func (t *a2uiToolset) Tools(_ agent.ReadonlyContext) ([]tool.Tool, error) {
 // appropriate mimeType ("application/json+a2ui"). Returns the new part and true if successful.
 func GetA2uiDataPart(part *genai.Part) (a2uiData *a2a.Part, ok bool) {
 	// Check if the part is a function response from the A2UI tool
-	if part != nil && part.FunctionResponse != nil && part.FunctionResponse.Name == ToolName {
+	if part != nil && part.FunctionResponse != nil && part.FunctionResponse.Name == GenerateA2UIMessagesToolName {
 		// Extract the "messages" array from the response
 		if messages, ok := part.FunctionResponse.Response["messages"]; ok {
 			// Wrap the messages in an A2A data part

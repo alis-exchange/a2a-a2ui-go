@@ -6,6 +6,7 @@ require (
 	github.com/a2aproject/a2a-go/v2 v2.0.1
 	github.com/google/jsonschema-go v0.4.2
 	google.golang.org/adk v1.0.0
+	google.golang.org/genai v1.40.0
 )
 
 require (
@@ -33,7 +34,6 @@ require (
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
-	google.golang.org/genai v1.40.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260128011058-8636f8732409 // indirect
 	google.golang.org/grpc v1.79.3 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
