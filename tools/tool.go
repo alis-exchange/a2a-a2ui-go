@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/a2aproject/a2a-go/v2/a2a"
@@ -149,8 +150,8 @@ func (i *A2UICatalogToolInput) JSONSchema() *jsonschema.Schema {
 // client's supportedCatalogIds capability (often absolute catalog URLs). InlineCatalogs holds
 // full catalog documents from inlineCatalogs, in the same shape as [kit.GetCatalogs].
 type A2UICatalogToolOutput struct {
-	CatalogURLs    []string         `json:"catalog_urls"`
-	InlineCatalogs []map[string]any `json:"inline_catalogs"`
+	CatalogURLs    []string `json:"catalog_urls"`
+	InlineCatalogs []string `json:"inline_catalogs"`
 }
 
 // JSONSchema returns the output schema exposed to the model for catalog_urls and inline_catalogs.
@@ -169,9 +170,9 @@ func (o *A2UICatalogToolOutput) JSONSchema() *jsonschema.Schema {
 			},
 			"inline_catalogs": {
 				Type:        "array",
-				Description: "A collection of fully defined A2UI component catalogs provided inline.",
+				Description: "A collection of fully defined A2UI component catalogs, provided as stringified JSON. You MUST parse these strings to read the JSON schema definitions, components, and $defs.",
 				Items: &jsonschema.Schema{
-					Type:        "object",
+					Type:        "string",
 					Description: "An individual A2UI catalog detailing available UI components, client-side functions, and shared definitions.",
 					Properties: map[string]*jsonschema.Schema{
 						"$schema": {
@@ -245,9 +246,18 @@ func A2UICatalogTool() (tool.Tool, error) {
 			return nil, err
 		}
 
+		var stringifiedCatalogs []string
+		for _, catalog := range catalogsMap {
+			jsonBytes, err := json.Marshal(catalog)
+			if err != nil {
+				return nil, err
+			}
+			stringifiedCatalogs = append(stringifiedCatalogs, string(jsonBytes))
+		}
+
 		return &A2UICatalogToolOutput{
 			CatalogURLs:    catalogURLs,
-			InlineCatalogs: catalogsMap,
+			InlineCatalogs: stringifiedCatalogs,
 		}, nil
 	}
 	return functiontool.New(functiontool.Config{
