@@ -2,7 +2,8 @@
 // A2UI server-to-client messages against the v0.9 JSON Schema.
 //
 // The primary entry points are [GenerateA2UIMessages], which returns a [google.golang.org/adk/tool.Tool]
-// that validates tool arguments, and [NewA2UIToolset], which wraps that tool in a filtered toolset
+// that validates [GenerateA2UIToolInput] and, on success, returns [GenerateA2UIToolOutput] echoing the
+// messages, and [NewA2UIToolset], which wraps that tool in a filtered toolset
 // exposed only when A2UI capabilities are present on the agent context (see
 // [go.alis.build/a2a/extension/a2ui/kit.CapabilitiesFromContext], typically after
 // [go.alis.build/a2a/extension/a2ui/kit.WithA2UICapabilities]).

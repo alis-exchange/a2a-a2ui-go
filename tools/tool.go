@@ -84,17 +84,17 @@ Validates an array of A2UI messages against the A2UI schema. Use this tool when 
 You MUST use the exact keys "createSurface", "updateComponents", "updateDataModel", or "deleteSurface".
 `
 
-// GenerateA2UIToolArgs is the JSON input/output shape for the generate A2UI messages tool.
+// GenerateA2UIToolInput is the JSON argument shape for [GenerateA2UIMessages].
 // Messages is a heterogeneous list of A2UI server-to-client message objects (each map typically
 // contains exactly one of createSurface, updateComponents, updateDataModel, or deleteSurface).
-type GenerateA2UIToolArgs struct {
+type GenerateA2UIToolInput struct {
 	Messages []map[string]any `json:"messages"`
 }
 
-// JSONSchema returns the tool argument JSON Schema for [GenerateA2UIToolArgs] so functiontool can
+// JSONSchema returns the tool argument JSON Schema for [GenerateA2UIToolInput] so functiontool can
 // expose it to the model: an object with required property "messages" whose value matches the
 // inlined A2UI v0.9 server-to-client list schema (see schema.go).
-func (GenerateA2UIToolArgs) JSONSchema() *jsonschema.Schema {
+func (i *GenerateA2UIToolInput) JSONSchema() *jsonschema.Schema {
 	return &jsonschema.Schema{
 		Type: "object",
 		Properties: map[string]*jsonschema.Schema{
@@ -104,11 +104,45 @@ func (GenerateA2UIToolArgs) JSONSchema() *jsonschema.Schema {
 	}
 }
 
-// GenerateA2UIMessages builds an ADK [tool.Tool] that accepts [GenerateA2UIToolArgs], validates
+// GenerateA2UIToolOutput represents the execution result of the [GenerateA2UIMessages] tool.
+// Note: Validation failures are typically returned as Go tool errors to trigger immediate
+// LLM retries, so this struct primarily serves as the "Wrapped Echo" success signal.
+type GenerateA2UIToolOutput struct {
+	// Status indicates the completion state. Returned as "success" when the UI is rendered.
+	Status string `json:"status"`
+	// IsValid is true when the echoed messages passed all A2UI JSON Schema and semantic checks.
+	IsValid bool `json:"is_valid"`
+	// Messages is the echoed server-to-client message list, forwarded to the client UI.
+	Messages []map[string]any `json:"messages"`
+}
+
+// JSONSchema returns the tool result JSON Schema for [GenerateA2UIToolOutput].
+// The descriptions are heavily optimized to prevent LLM tool-calling loops.
+func (o *GenerateA2UIToolOutput) JSONSchema() *jsonschema.Schema {
+	return &jsonschema.Schema{
+		Type: "object",
+		Properties: map[string]*jsonschema.Schema{
+			"status": {
+				Type:        "string",
+				Description: "The execution status. A 'success' value means the UI was successfully generated and is valid according to the A2UI schema. Your task is 100% complete. Do not call this tool again. End your turn.",
+				Enum:        []any{"success", "error"},
+			},
+			"is_valid": {
+				Type:        "boolean",
+				Description: "Confirmed true if the A2UI payload passed all strict schema validations and was accepted by the client.",
+			},
+			// Note: Assuming a2UiServerToClientListSchema is defined elsewhere in your package.
+			"messages": &a2UiServerToClientListSchema,
+		},
+		Required: []string{"status", "is_valid", "messages"},
+	}
+}
+
+// GenerateA2UIMessages builds an ADK [tool.Tool] that accepts [GenerateA2UIToolInput], validates
 // args.Messages against the resolved JSON Schema, then applies extra semantic checks (root
 // component per surface). Validation errors are returned as tool errors so the model can self-correct.
 func GenerateA2UIMessages() (tool.Tool, error) {
-	handler := func(ctx tool.Context, args *GenerateA2UIToolArgs) (*GenerateA2UIToolArgs, error) {
+	handler := func(ctx tool.Context, args *GenerateA2UIToolInput) (*GenerateA2UIToolOutput, error) {
 		rs, err := a2UiServerToClientListSchema.Resolve(nil)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve A2UI schema: %v", err)
@@ -122,14 +156,18 @@ func GenerateA2UIMessages() (tool.Tool, error) {
 			return nil, fmt.Errorf("validation failed. %v", err)
 		}
 
-		return args, nil
+		return &GenerateA2UIToolOutput{
+			Status:   "success",
+			IsValid:  true,
+			Messages: args.Messages,
+		}, nil
 	}
 
 	return functiontool.New(functiontool.Config{
 		Name:         GenerateA2UIMessagesToolName,
 		Description:  toolDescription,
-		InputSchema:  GenerateA2UIToolArgs{}.JSONSchema(),
-		OutputSchema: GenerateA2UIToolArgs{}.JSONSchema(),
+		InputSchema:  (&GenerateA2UIToolInput{}).JSONSchema(),
+		OutputSchema: (&GenerateA2UIToolOutput{}).JSONSchema(),
 	}, handler)
 }
 
