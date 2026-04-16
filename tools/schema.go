@@ -7,7 +7,7 @@ import (
 // version is the A2UI protocol version string required in each message (const field in JSON Schema).
 var version any = "v0.9"
 
-// a2UiServerToClientListSchema is the JSON Schema for a top-level array of A2UI server-to-client
+// A2UiServerToClientListSchema is the JSON Schema for a top-level array of A2UI server-to-client
 // messages (v0.9). It is equivalent to the published JSON at
 // https://a2ui.org/specification/v0_9/server_to_client_list.json, expressed as
 // [jsonschema.Schema] values for compile-time validation and runtime validation via
@@ -15,7 +15,7 @@ var version any = "v0.9"
 //
 // The schema includes $defs for CreateSurface, UpdateComponents, UpdateDataModel, and
 // DeleteSurface message shapes.
-var a2UiServerToClientListSchema = jsonschema.Schema{
+var A2UiServerToClientListSchema = jsonschema.Schema{
 	Schema:      "https://json-schema.org/draft/2020-12/schema",
 	ID:          "https://a2ui.org/specification/v0_9/server_to_client_list.json",
 	Title:       "A2UI Server-to-Client Message List",

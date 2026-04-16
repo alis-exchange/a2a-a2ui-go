@@ -98,7 +98,7 @@ func (i *GenerateA2UIToolInput) JSONSchema() *jsonschema.Schema {
 	return &jsonschema.Schema{
 		Type: "object",
 		Properties: map[string]*jsonschema.Schema{
-			"messages": &a2UiServerToClientListSchema,
+			"messages": &A2UiServerToClientListSchema,
 		},
 		Required: []string{"messages"},
 	}
@@ -132,7 +132,7 @@ func (o *GenerateA2UIToolOutput) JSONSchema() *jsonschema.Schema {
 				Description: "Confirmed true if the A2UI payload passed all strict schema validations and was accepted by the client.",
 			},
 			// Note: Assuming a2UiServerToClientListSchema is defined elsewhere in your package.
-			"messages": &a2UiServerToClientListSchema,
+			"messages": &A2UiServerToClientListSchema,
 		},
 		Required: []string{"status", "is_valid", "messages"},
 	}
@@ -143,7 +143,7 @@ func (o *GenerateA2UIToolOutput) JSONSchema() *jsonschema.Schema {
 // component per surface). Validation errors are returned as tool errors so the model can self-correct.
 func GenerateA2UIMessages() (tool.Tool, error) {
 	handler := func(ctx tool.Context, args *GenerateA2UIToolInput) (*GenerateA2UIToolOutput, error) {
-		rs, err := a2UiServerToClientListSchema.Resolve(nil)
+		rs, err := A2UiServerToClientListSchema.Resolve(nil)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve A2UI schema: %v", err)
 		}

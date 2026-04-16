@@ -3,10 +3,10 @@ module go.alis.build/a2a/extension/a2ui
 go 1.26.1
 
 require (
-	github.com/a2aproject/a2a-go/v2 v2.0.1
+	github.com/a2aproject/a2a-go/v2 v2.2.0
 	github.com/google/jsonschema-go v0.4.2
 	google.golang.org/adk v1.0.0
-	google.golang.org/genai v1.40.0
+	google.golang.org/genai v1.54.0
 )
 
 require (
