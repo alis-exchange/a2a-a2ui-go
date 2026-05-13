@@ -1,3 +1,13 @@
+// Package kit contains helpers for A2UI client capability data: attaching it to a [context.Context]
+// and parsing catalog fields from a capability params map.
+//
+// [WithA2UICapabilities] copies A2UI v0.9 capabilities from an executor message
+// (Metadata["a2uiClientCapabilities"]["v0.9"]) onto the context when the A2A call context is
+// present and the A2UI extension is activated. [CapabilitiesFromContext] reads that map—for example
+// to decide whether to expose A2UI tools.
+//
+// [GetCatalogs] extracts supportedCatalogIds and inlineCatalogs from a capability params map in
+// the shape described by the A2UI specification.
 package kit
 
 import (
@@ -5,11 +15,8 @@ import (
 
 	sdka2asrv "github.com/a2aproject/a2a-go/v2/a2asrv"
 	a2asrv "go.alis.build/a2a/extension/a2ui/a2asrv"
+	"go.alis.build/adk/a2ui/kit"
 )
-
-// a2uiCapabilitiesCtxKey is the private context key type for A2UI capability maps.
-// Using a struct type avoids collisions with other packages' context values.
-type a2uiCapabilitiesCtxKey struct{}
 
 // WithA2UICapabilities attaches the A2UI v0.9 client capability map to ctx when every check
 // succeeds; otherwise it returns ctx unchanged.
@@ -46,12 +53,11 @@ func WithA2UICapabilities(ctx context.Context, execCtx *sdka2asrv.ExecutorContex
 		return ctx
 	}
 
-	return context.WithValue(ctx, a2uiCapabilitiesCtxKey{}, a2uiCapabilities)
+	return kit.WithA2UICapabilities(ctx, a2uiCapabilities)
 }
 
 // CapabilitiesFromContext returns the v0.9 capability params map previously stored by
 // [WithA2UICapabilities], and whether that store happened. If ok is false, the map must not be used.
 func CapabilitiesFromContext(ctx context.Context) (map[string]any, bool) {
-	capabilities, ok := ctx.Value(a2uiCapabilitiesCtxKey{}).(map[string]any)
-	return capabilities, ok
+	return kit.CapabilitiesFromContext(ctx)
 }
