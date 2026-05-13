@@ -4,7 +4,7 @@ go 1.26.1
 
 require (
 	github.com/a2aproject/a2a-go/v2 v2.3.0
-	go.alis.build/adk/a2ui v0.1.0
+	go.alis.build/adk/a2ui v0.1.1
 	google.golang.org/genai v1.56.0
 )
 
